@@ -131,8 +131,8 @@ with gr.Blocks(title="抖音直链解析 + 固定目录下载 + 抽帧") as demo
         try:
             urls = [x.strip() for x in urls_text.splitlines() if x.strip()]
             # 用户输入过 → 过滤示例
-            if any(u not in EXAMPLES for u in urls):
-                urls = [u for u in urls if u not in EXAMPLES]
+            # if any(u not in EXAMPLES for u in urls):
+            #     urls = [u for u in urls if u not in EXAMPLES]
             if not urls:
                 yield "<p>请输入至少一个有效链接</p>", [], gr.update(choices=[], value=[]), "⚠️ 无链接"
                 return
