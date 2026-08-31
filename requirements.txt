@@ -1,6 +1,6 @@
 # ---------------- Core ----------------
 gradio>=5.45,<6
-yt-dlp==2025.9.5
+yt-dlp>=2025.9.5
 requests>=2.32.0,<3
 # HLS AES-128 解密加速：缺了它 yt-dlp 会退回纯 Python 解密，慢一个数量级
 pycryptodomex>=3.20,<4
