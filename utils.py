@@ -65,11 +65,13 @@ def detect_platform(url: str) -> Optional[Platform]:
     u = (url or "").lower()
     if "douyin.com" in u or "v.douyin.com" in u:
         return "douyin"
-    # 小鹅通店铺域名形如 appXXXX.pc.xiaoe-tech.com / appXXXX.h5.xiaoeknow.com，
-    # 也有商家绑定的自有域名，这类只能靠链接特征兜底（见 detect_platform_loose）。
+    # 小鹅通店铺域名形如 appXXXX.pc.xiaoe-tech.com / appXXXX.h5.xiaoeknow.com。
+    # 商家还可以绑定自有域名，这类域名没法穷举（各家策略不同），
+    # 但小鹅通会统一加 xet-pc. / .xet. 这层前缀，例如 app5xxx.xet-pc.citv.cn，
+    # 所以靠这个前缀特征兜底，而不是维护域名白名单。
+    # 连前缀都不带的，再退到 URL 路径特征（见 detect_platform_loose）。
     if ("xiaoe-tech.com" in u or "xiaoeknow.com" in u or "xiaoecloud.com" in u
             or "xet.tech" in u or "xeknow.com" in u
-            # 商家绑定的自有域名，小鹅通统一带 xet-pc. / xet. 前缀，如 app5xxx.xet-pc.example.com
             or "xet-pc." in u or ".xet." in u):
         return "xiaoe"
     return None
