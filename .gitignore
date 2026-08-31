@@ -25,3 +25,10 @@ frames/
 playwright/.cache/
 playwright-report/
 test-results/
+
+# 登录态（含 cookie，切勿提交）
+.browser_profiles/
+.cookies/
+
+# Evolver 本地状态
+.evolver/

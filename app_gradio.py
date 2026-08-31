@@ -9,12 +9,17 @@ from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse, FileResponse
 
 # 你现有的依赖
-from parser import sniff_serial
+from sniffer import sniff_serial, open_login
 from downloader import download_video
-from extractor import extract_frames
+from frame_extractor import extract_frames
 from state_store import PAGE_TO_PATH
-from utils import detect_platform, extract_code, find_existing_by_code
-from config import STEP_MIN, STEP_MAX
+from utils import (
+    detect_platform_loose,
+    extract_code,
+    find_existing_by_code,
+    PLATFORM_LABELS,
+)
+from config import STEP_MIN, STEP_MAX, COOKIE_SOURCE
 
 # 新增：两个 Tab 的模块
 from tabs.link_tab import build_link_tab
@@ -24,17 +29,20 @@ from tabs.local_tab import build_local_tab
 CTX = dict(
     STEP_MIN=STEP_MIN,
     STEP_MAX=STEP_MAX,
+    COOKIE_SOURCE=COOKIE_SOURCE,
     PAGE_TO_PATH=PAGE_TO_PATH,
     sniff_serial=sniff_serial,
     download_video=download_video,
     extract_frames=extract_frames,
-    detect_platform=detect_platform,
+    detect_platform=detect_platform_loose,
     extract_code=extract_code,
     find_existing_by_code=find_existing_by_code,
+    open_login=open_login,
+    PLATFORM_LABELS=PLATFORM_LABELS,
 )
 
-with gr.Blocks(title="抖音直链解析 + 固定目录下载 + 抽帧") as demo:
-    gr.Markdown("# 🎥 抖音视频直链解析 · 下载 · 抽帧")
+with gr.Blocks(title="视频直链解析 + 固定目录下载 + 抽帧") as demo:
+    gr.Markdown("# 🎥 视频直链解析 · 下载 · 抽帧\n\n支持平台：**抖音**、**小鹅通**（需自己已购买课程的登录态）")
 
     with gr.Tabs():
         with gr.Tab("🔗 链接解析 / 下载 / 抽帧"):

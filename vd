@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# 命令行入口：自动用项目自带的 .venv，没有就退回当前 python3
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PY="$DIR/.venv/bin/python"
+[ -x "$PY" ] || PY="$(command -v python3)"
+cd "$DIR"
+exec "$PY" "$DIR/cli.py" "$@"

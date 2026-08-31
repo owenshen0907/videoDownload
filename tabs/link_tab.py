@@ -18,19 +18,24 @@ def build_link_tab(CTX: dict):
     detect_platform = CTX["detect_platform"]
     extract_code = CTX["extract_code"]
     find_existing_by_code = CTX["find_existing_by_code"]
+    open_login = CTX["open_login"]
+    PLATFORM_LABELS = CTX["PLATFORM_LABELS"]
 
     EXAMPLES = [
         "https://v.douyin.com/nZasikV8ea4/",
-        "https://v.douyin.com/urI4O20_90U/",
+        "https://appxxxxxxxxxxx.pc.xiaoe-tech.com/p/t_pc/course_pc_detail/video/v_xxxxxxxxxxxxxxxxxxxxxxxx?product_id=course_xxxxxxxxxxxxxxxxxxxxxxxxxx",
     ]
 
     # ---------- 工具 ----------
     def precheck_rows(urls: List[str]) -> Tuple[List[Row], List[str]]:
         rows, to_parse = [], []
         for u in urls:
-            pf = detect_platform(u) or "douyin"
-            code = extract_code(pf, u) if pf else None
-            existing = find_existing_by_code(pf, code) if (pf and code) else None
+            pf = detect_platform(u)
+            if not pf:
+                rows.append([u, "", "❓ 不支持的平台（目前支持：抖音、小鹅通）"])
+                continue
+            code = extract_code(pf, u)
+            existing = find_existing_by_code(pf, code) if code else None
             if existing:
                 PAGE_TO_PATH[u] = str(existing)
                 rows.append([u, "", f"✅ 已下载 · {existing.name}"])
@@ -49,6 +54,7 @@ def build_link_tab(CTX: dict):
             "<table style='border-collapse:collapse;width:100%;font-size:14px'>",
             "<thead><tr>",
             "<th style='border:1px solid #ddd;padding:8px'>序号</th>",
+            "<th style='border:1px solid #ddd;padding:8px'>平台</th>",
             "<th style='border:1px solid #ddd;padding:8px'>原始链接</th>",
             "<th style='border:1px solid #ddd;padding:8px'>直链预览</th>",
             "<th style='border:1px solid #ddd;padding:8px'>状态</th>",
@@ -62,9 +68,11 @@ def build_link_tab(CTX: dict):
             can_extract = (u in PAGE_TO_PATH)
             ex = (f'<a href="/api/extract_by_page?page_url={quote(u, safe="")}&step={step_val}" target="_blank">抽帧</a>'
                   if can_extract else "<span style='color:#999'>请先下载</span>")
+            pf_label = PLATFORM_LABELS.get(detect_platform(u) or "", "—")
             html.append(
                 "<tr>"
                 f"<td style='border:1px solid #ddd;padding:8px'>{i}</td>"
+                f"<td style='border:1px solid #ddd;padding:8px'>{pf_label}</td>"
                 f"<td style='border:1px solid #ddd;padding:8px'>{orig}</td>"
                 f"<td style='border:1px solid #ddd;padding:8px;word-break:break-all'>{dspan}</td>"
                 f"<td style='border:1px solid #ddd;padding:8px'>{status}</td>"
@@ -79,7 +87,22 @@ def build_link_tab(CTX: dict):
     with gr.Row():
         headless = gr.Checkbox(value=True, label="无头模式（不弹窗）")
         wait_ms = gr.Slider(3000, 20000, value=8000, step=500, label="等待时长（毫秒）")
+    cookie_mode = gr.Radio(
+        choices=["chrome", "profile", "auto"],
+        value=CTX.get("COOKIE_SOURCE", "auto"),
+        label="登录态来源",
+        info="chrome=直接复用本机 Chrome 的登录（推荐，不用重复登录）；profile=用下方按钮单独登录一次；auto=先 chrome 再 profile",
+    )
     step_slider = gr.Slider(STEP_MIN, STEP_MAX, value=1, step=1, label="抽帧间隔（秒）")
+
+    with gr.Row():
+        btn_login   = gr.Button("🔐 打开浏览器登录（小鹅通等需登录的平台）", variant="secondary")
+    gr.Markdown(
+        "> 小鹅通课程需要**你自己已购买/已领取**的账号。"
+        "如果你平时就在本机 Chrome 里登录着，把「登录态来源」选 `chrome` 即可，**不用再登录一次**"
+        "（macOS 首次读取会弹钥匙串授权，点允许）。"
+        "只有在 Chrome 里没登录时，才需要点上面的按钮弹出浏览器登录，登录完**直接关掉窗口**。"
+    )
 
     with gr.Row():
         btn_parse   = gr.Button("一键解析", variant="primary")
@@ -97,7 +120,8 @@ def build_link_tab(CTX: dict):
     rows_state = gr.State([])  # List[Row]
 
     # ---------- 解析（两阶段） ----------
-    def run_batch(urls_text: str, headless_val: bool, wait_ms_val: int, step_val: int, prog=gr.Progress()):
+    def run_batch(urls_text: str, headless_val: bool, wait_ms_val: int, step_val: int,
+                  cookie_mode_val: str = "auto", prog=gr.Progress()):
         global RUNNING
         if RUNNING:
             yield results_html, rows_state, select_multi, status_note
@@ -119,7 +143,8 @@ def build_link_tab(CTX: dict):
             if not to_parse:
                 return
             prog(0, desc="解析未下载的视频…")
-            parsed = asyncio.run(sniff_serial(to_parse, headless=headless_val, wait_ms=wait_ms_val))
+            parsed = asyncio.run(sniff_serial(to_parse, headless=headless_val,
+                                              wait_ms=wait_ms_val, cookie_mode=cookie_mode_val))
             prog(1)
 
             dmap = {p: d for (p, d, _s) in parsed}
@@ -137,9 +162,23 @@ def build_link_tab(CTX: dict):
         finally:
             RUNNING = False
 
+    def do_login(urls_text: str):
+        urls = [x.strip() for x in (urls_text or "").splitlines() if x.strip()]
+        target = next((u for u in urls if detect_platform(u) == "xiaoe"), None)
+        if not target:
+            return "⚠️ 请先在上面填入需要登录的平台链接（如小鹅通课程链接），再点登录。"
+        return open_login(target)
+
+    btn_login.click(
+        do_login,
+        inputs=[urls_in],
+        outputs=[status_note],
+        show_progress="full",
+    )
+
     btn_parse.click(
         run_batch,
-        inputs=[urls_in, headless, wait_ms, step_slider],
+        inputs=[urls_in, headless, wait_ms, step_slider, cookie_mode],
         outputs=[results_html, rows_state, select_multi, status_note],
         show_progress="full"
     )
@@ -230,7 +269,7 @@ def build_link_tab(CTX: dict):
             if not vp:
                 not_downloaded.append(i + 1)
                 continue
-            from extractor import extract_frames  # 延迟导入，避免循环
+            from frame_extractor import extract_frames  # 延迟导入，避免循环
             ok, zip_path, log = extract_frames(vp, step_val)
             if not ok:
                 fail_notes.append(f"第{i+1}行：{log}")
